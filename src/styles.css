@@ -98,3 +98,10 @@ thead th.so,thead tr.sub th{position:sticky}
 thead tr:first-child th{top:0;z-index:4}
 thead tr.sub th{z-index:3}
 thead th.stick,thead th.stick2{z-index:6}
+/* ===== v6: toggle password, modal dengan footer tetap ===== */
+.pwwrap{position:relative;display:flex}.pwwrap input{width:100%;padding-right:46px}
+.eye{position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:0;color:var(--smoke);cursor:pointer;padding:6px;border-radius:8px;display:grid;place-items:center}.eye:hover{color:#fff;background:var(--graph)}
+.sheet.wide{display:flex;flex-direction:column;padding:0;overflow:hidden;max-height:88vh}
+.sheet.wide .sbody{overflow:auto;padding:20px;flex:1;min-height:0;text-align:left}
+.sheet.wide .sfoot{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:12px 20px;border-top:1px solid var(--graph);background:var(--ink)}
+.sheet.wide .sfoot .btn{margin:0}

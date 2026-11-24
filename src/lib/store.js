@@ -3,11 +3,18 @@ const TK = 'ppic-token', UK = 'ppic-user', CK = 'ppic-cache-v3'
 export const getSession = () => { try { return sessionStorage.getItem(TK) ? JSON.parse(sessionStorage.getItem(UK)) : null } catch { return null } }
 export const logout = () => { [TK, UK, CK].forEach(k => sessionStorage.removeItem(k)) }
 
-async function call(path, opt = {}) {
-  const r = await fetch(path, { ...opt, headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + sessionStorage.getItem(TK) } })
-  const j = await r.json().catch(() => ({}))
-  if (!r.ok) throw Object.assign(new Error(j.error || 'Gagal (' + r.status + ')'), { status: r.status, data: j })
-  return j
+// Semua request punya batas waktu supaya tombol/antrian tidak "macet" selamanya kalau server tidak merespons
+async function call(path, opt = {}, ms = 30000) {
+  const ac = new AbortController(), t = setTimeout(() => ac.abort(), ms)
+  try {
+    const r = await fetch(path, { ...opt, signal: ac.signal, headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + sessionStorage.getItem(TK) } })
+    const j = await r.json().catch(() => ({}))
+    if (!r.ok) throw Object.assign(new Error(j.error || 'Gagal (' + r.status + ')'), { status: r.status, data: j })
+    return j
+  } catch (e) {
+    if (e.name === 'AbortError') throw new Error('Server tidak merespons (timeout). Pastikan server berjalan dan koneksi internet stabil.')
+    throw e
+  } finally { clearTimeout(t) }
 }
 export const api = call
 export async function login(u, p) {
@@ -35,7 +42,7 @@ export function diff(d) {
   const colsChanged = JSON.stringify(d.columns) !== JSON.stringify(sv.columns)
   // validasi: errors memblokir Submit, warnings hanya peringatan
   const sos = d.columns.map(c => String(c.so).trim()).filter(Boolean)
-  ;[...new Set(sos.filter((s, i) => sos.indexOf(s) !== i))].forEach(s => errors.push(`No. SO ${s} dipakai di lebih dari satu kolom`))
+  ;[...new Set(sos.filter((s, i) => sos.indexOf(s) !== i))].forEach(s => warnings.push(`No. SO ${s} dipakai di lebih dari satu kolom (kebutuhannya akan terhitung ganda)`))
   d.columns.forEach((c, i) => {
     const s = String(c.so).trim()
     if (!s && c.buyer) warnings.push(`Kolom ${i + 1} (${c.buyer}) belum punya No. SO`)
@@ -93,7 +100,7 @@ export function useData(onAuthFail) {
   const queue = useRef(Promise.resolve())
   const enqueue = (body, quiet) => {
     setSt(s => ({ ...s, saving: s.saving + 1, error: '' }))
-    const p = queue.current.then(() => call('/api/data', { method: 'POST', body: JSON.stringify(body) }))
+    const p = queue.current.then(() => call('/api/data', { method: 'POST', body: JSON.stringify(body) }, body.action === 'reservasi' || body.action === 'upload' ? 120000 : 30000))
     queue.current = p.catch(() => {})
     return p.catch(e => { if (!quiet) fail(e); throw e }).finally(() => setSt(s => ({ ...s, saving: s.saving - 1 })))
   }
